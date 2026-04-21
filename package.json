@@ -1,0 +1,16 @@
+{
+  "name": "xp-middleware",
+  "version": "1.0.0",
+  "description": "XP middleware bridge between Roblox and Discord",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.3",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "noblox.js": "^4.15.1",
+    "node-fetch": "^3.3.2"
+  }
+}
