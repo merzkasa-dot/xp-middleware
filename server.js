@@ -52,6 +52,11 @@ const COOKIE   = process.env.ROBLOX_COOKIE?.replace(/^"|"$/g, "");
 const GROUP_ID = Number(process.env.GROUP_ID?.replace(/^"|"$/g, ""));
 const MONGO_URL = process.env.MONGO_URL?.replace(/^"|"$/g, "");
 
+console.log("[DEBUG] Cookie length:", COOKIE?.length);
+console.log("[DEBUG] Cookie preview:", COOKIE?.slice(0, 50));
+console.log("[DEBUG] Group ID:", GROUP_ID);
+console.log("[DEBUG] Secret set:", !!SECRET);
+
 // ── All available medals
 const ALL_MEDALS = [
   "Hero of the Soviet Union",
