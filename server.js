@@ -47,9 +47,10 @@ function saveXp()     { saveJson(XP_FILE,    Object.fromEntries(xpStore)); }
 function saveMedals() { saveJson(MEDAL_FILE, medalStore); }
 
 // ── Config
-const SECRET   = process.env.SECRET;
-const COOKIE   = process.env.ROBLOX_COOKIE;
-const GROUP_ID = Number(process.env.GROUP_ID);
+const SECRET   = process.env.SECRET?.replace(/^"|"$/g, "");
+const COOKIE   = process.env.ROBLOX_COOKIE?.replace(/^"|"$/g, "");
+const GROUP_ID = Number(process.env.GROUP_ID?.replace(/^"|"$/g, ""));
+const MONGO_URL = process.env.MONGO_URL?.replace(/^"|"$/g, "");
 
 // ── All available medals
 const ALL_MEDALS = [
