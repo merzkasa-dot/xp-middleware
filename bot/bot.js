@@ -14,9 +14,9 @@ const GUILD_ID       = "1482833669558239242";
 const MEDAL_WEBHOOK  = "https://discord.com/api/webhooks/1495502633853779990/AniBufk_HWlS0kDhpGiuD654bcKSxLEYb7w_XQxB0kzW4wcsQvZD4TPCEaKuu2Fuf7zI";
 
 const MEDAL_ROLES = [
-"1475283604648104008",
-"1485763953438097438",
-"1477080531790204989",
+  "1475283604648104008",
+  "1485763953438097438",
+  "1477080531790204989",
 ];
 
 const XP_ROLES = [
@@ -57,6 +57,41 @@ const ALL_MEDALS = [
   "For 'Battle Merit'",
   "Committee's Pride",
   "Order of 'Friendship of Peoples'",
+];
+
+// ── Medal descriptions shown in /medallist
+const MEDAL_INFO = {
+  "Hero of the Soviet Union":                              "The highest honorary title — awarded for heroic feats in service of the Soviet state.",
+  "For 'Impeccable Service First Class'":                  "Awarded for long and distinguished service — First Class, the highest tier.",
+  "People's Architect of the USSR":                        "Recognises outstanding contributions to architecture and construction efforts.",
+  "Order of 'Victory'":                                    "One of the rarest orders — given only for decisive military success.",
+  "Order of the 'Red Banner'":                             "Awarded for exceptional bravery and courage in the field.",
+  "For 'Impeccable Service Second Class'":                 "Awarded for long and distinguished service — Second Class.",
+  "For 'Impeccable Service Third Class'":                  "Awarded for long and distinguished service — Third Class, entry tier.",
+  "Recognition from Staff team":                           "A personal commendation issued directly by the Staff team for notable conduct.",
+  "Marshal's Star":                                        "Exclusive to the highest-ranking commanders — a symbol of supreme authority.",
+  "For 'Distinction in Military Service First Class'":     "Awarded for excellence in military duties — First Class.",
+  "People's Teacher of the USSR":                          "Recognises outstanding contributions to education and training of personnel.",
+  "Order of the 'Red Star'":                               "Awarded for significant contributions to the defence of the state.",
+  "Order of 'Alexander Nevsky'":                           "Awarded to commanders who demonstrate skilful and brave leadership.",
+  "Order of 'Defenders of Moscow'":                        "Honours those who participated in the defence of Moscow.",
+  "For 'Distinction in Military Service 2nd Class'":       "Awarded for excellence in military duties — Second Class.",
+  "For 'Distinction in Guarding the State Border of the USSR'": "Recognises distinguished service in protecting the state border.",
+  "Veteran of the Armed Forces of the USSR":               "Awarded to long-serving members of the Armed Forces.",
+  "For 'Courage'":                                         "Awarded for acts of personal courage under dangerous conditions.",
+  "For 'Battle Merit'":                                    "Recognises skillful actions that contributed to success in combat.",
+  "Committee's Pride":                                     "Awarded by the Committee to those who bring exceptional honour to the group.",
+  "Order of 'Friendship of Peoples'":                      "Awarded for strengthening unity, cooperation, and relations between peoples.",
+};
+
+// ── XP tips shown at the bottom of /xp
+const XP_TIPS = [
+  "🎮 Play sessions in-game — you earn XP for active participation.",
+  "📋 Attend hosted events and trainings for bonus XP.",
+  "🏆 Complete objectives and missions assigned by officers.",
+  "🤝 Cooperate with your unit — teamwork is rewarded.",
+  "⭐ Get recognised by staff for outstanding conduct.",
+  "📅 Log consistent activity — regulars earn more over time.",
 ];
 
 const RANK_THRESHOLDS = [
@@ -115,7 +150,6 @@ async function sendWebhookLog(msg) {
 async function resolveRobloxUser(input) {
   input = input.trim();
 
-  // Numeric ID
   if (/^\d+$/.test(input)) {
     try {
       const res  = await fetch(`https://users.roblox.com/v1/users/${input}`);
@@ -125,7 +159,6 @@ async function resolveRobloxUser(input) {
     return { userId: input, username: `User ${input}` };
   }
 
-  // Username lookup
   try {
     const res = await fetch("https://users.roblox.com/v1/usernames/users", {
       method: "POST",
@@ -139,14 +172,14 @@ async function resolveRobloxUser(input) {
     }
   } catch {}
 
-  return null; // not found
+  return null;
 }
 
 // ── Slash commands
 const commands = [
   new SlashCommandBuilder()
     .setName("xp")
-    .setDescription("Check a player's XP")
+    .setDescription("Check a player's XP and rank")
     .addStringOption(opt =>
       opt.setName("player").setDescription("Roblox username or user ID").setRequired(true)
     ),
@@ -177,6 +210,10 @@ const commands = [
     .addStringOption(opt =>
       opt.setName("player").setDescription("Roblox username or user ID").setRequired(true)
     ),
+
+  new SlashCommandBuilder()
+    .setName("medallist")
+    .setDescription("View all available medals and their descriptions"),
 
   new SlashCommandBuilder()
     .setName("award")
@@ -221,12 +258,41 @@ client.once("ready", () => {
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+
+  // /medallist doesn't need a player, handle it before the defer+resolve block
+  if (interaction.commandName === "medallist") {
+    await interaction.deferReply();
+
+    const medalLines = ALL_MEDALS.map((medal, i) => {
+      const desc = MEDAL_INFO[medal] ?? "No description available.";
+      return `**${i + 1}. ${medal}**\n╰ ${desc}`;
+    });
+
+    // Split into two embeds so we don't hit the 4096-char description limit
+    const half    = Math.ceil(medalLines.length / 2);
+    const partOne = medalLines.slice(0, half).join("\n\n");
+    const partTwo = medalLines.slice(half).join("\n\n");
+
+    const embedOne = new EmbedBuilder()
+      .setTitle("🎖️ All Available Medals — Part 1")
+      .setColor(0xf1c40f)
+      .setDescription(partOne);
+
+    const embedTwo = new EmbedBuilder()
+      .setTitle("🎖️ All Available Medals — Part 2")
+      .setColor(0xf1c40f)
+      .setDescription(partTwo)
+      .setFooter({ text: `${ALL_MEDALS.length} medals total` })
+      .setTimestamp();
+
+    return interaction.editReply({ embeds: [embedOne, embedTwo] });
+  }
+
   await interaction.deferReply();
 
   const playerInput = interaction.options.getString("player")?.trim();
   const member      = interaction.member;
 
-  // Resolve player
   const robloxUser = await resolveRobloxUser(playerInput);
   if (!robloxUser) {
     return interaction.editReply(`❌ Could not find Roblox user \`${playerInput}\`. Check the username or ID and try again.`);
@@ -256,6 +322,11 @@ client.on("interactionCreate", async (interaction) => {
           { name: "XP",       value: `**${data.xp}**`,    inline: true },
           { name: "Rank",     value: `**${tier.label}**`, inline: true },
           { name: "Progress", value: bar,                  inline: false },
+          {
+            name: "💡 How to earn XP",
+            value: XP_TIPS.join("\n"),
+            inline: false,
+          },
         )
         .setFooter({ text: next ? `Next rank: ${next.label} at ${next.xp} XP` : "🏆 Maximum rank achieved!" })
         .setTimestamp();
