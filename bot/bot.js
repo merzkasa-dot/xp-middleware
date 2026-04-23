@@ -88,10 +88,6 @@ const MEDAL_INFO = {
 const XP_TIPS = [
   "🎮 Play sessions in-game — you earn XP for active participation.",
   "📋 Attend hosted events and trainings for bonus XP.",
-  "🏆 Complete objectives and missions assigned by officers.",
-  "🤝 Cooperate with your unit — teamwork is rewarded.",
-  "⭐ Get recognised by staff for outstanding conduct.",
-  "📅 Log consistent activity — regulars earn more over time.",
 ];
 
 const RANK_THRESHOLDS = [
