@@ -13,6 +13,12 @@ const SECRET         = process.env.SECRET?.replace(/^"|"$/g, "");
 const GUILD_ID       = "1482833669558239242";
 const MEDAL_WEBHOOK  = "https://discord.com/api/webhooks/1495502633853779990/AniBufk_HWlS0kDhpGiuD654bcKSxLEYb7w_XQxB0kzW4wcsQvZD4TPCEaKuu2Fuf7zI";
 
+// ── Roblox group + gamepass config
+const ROBLOX_GROUP_ID   = process.env.ROBLOX_GROUP_ID?.replace(/^"|"$/g, "");  // Add to .env
+const GAMEPASS_ID       = "1800470428";
+const RANK_BOOSTER      = 1;   // Rank for server boosters
+const RANK_GAMEPASS     = 6;   // Rank for gamepass owners (also wins if both)
+
 const MEDAL_ROLES = [
   "1475283604648104008",
   "1485763953438097438",
@@ -59,7 +65,6 @@ const ALL_MEDALS = [
   "Order of 'Friendship of Peoples'",
 ];
 
-// ── Medal descriptions shown in /medallist
 const MEDAL_INFO = {
   "Hero of the Soviet Union":                              "The highest honorary title — awarded for heroic feats in service of the Soviet state.",
   "For 'Impeccable Service First Class'":                  "Awarded for long and distinguished service — First Class, the highest tier.",
@@ -84,7 +89,6 @@ const MEDAL_INFO = {
   "Order of 'Friendship of Peoples'":                      "Awarded for strengthening unity, cooperation, and relations between peoples.",
 };
 
-// ── XP tips shown at the bottom of /xp
 const XP_TIPS = [
   "🎮 Play sessions in-game — you earn XP for active participation.",
   "📋 Attend hosted events and trainings for bonus XP.",
@@ -171,6 +175,19 @@ async function resolveRobloxUser(input) {
   return null;
 }
 
+// ── Check if a Roblox user owns a gamepass
+async function checkGamepass(userId, gamepassId) {
+  try {
+    const res = await fetch(
+      `https://inventory.roblox.com/v1/users/${userId}/items/GamePass/${gamepassId}`
+    );
+    const data = await res.json();
+    return data.data && data.data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 // ── Slash commands
 const commands = [
   new SlashCommandBuilder()
@@ -232,6 +249,15 @@ const commands = [
       opt.setName("medal").setDescription("Medal to revoke").setRequired(true)
         .addChoices(...ALL_MEDALS.map(m => ({ name: m, value: m })))
     ),
+
+  // ── NEW: /verifyari
+  new SlashCommandBuilder()
+    .setName("verifyari")
+    .setDescription("Verify your Roblox account to join the Aristocracy group")
+    .addStringOption(opt =>
+      opt.setName("roblox_username").setDescription("Your Roblox username or user ID").setRequired(true)
+    ),
+
 ].map(cmd => cmd.toJSON());
 
 async function registerCommands() {
@@ -246,7 +272,12 @@ async function registerCommands() {
   }
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,   // Needed to fetch member/boost info
+  ]
+});
 
 client.once("ready", () => {
   console.log(`[Bot] Logged in as ${client.user.tag}`);
@@ -255,7 +286,7 @@ client.once("ready", () => {
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  // /medallist doesn't need a player, handle it before the defer+resolve block
+  // /medallist — no player needed
   if (interaction.commandName === "medallist") {
     await interaction.deferReply();
 
@@ -264,7 +295,6 @@ client.on("interactionCreate", async (interaction) => {
       return `**${i + 1}. ${medal}**\n╰ ${desc}`;
     });
 
-    // Split into two embeds so we don't hit the 4096-char description limit
     const half    = Math.ceil(medalLines.length / 2);
     const partOne = medalLines.slice(0, half).join("\n\n");
     const partTwo = medalLines.slice(half).join("\n\n");
@@ -284,6 +314,120 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.editReply({ embeds: [embedOne, embedTwo] });
   }
 
+  // ── /verifyari
+  if (interaction.commandName === "verifyari") {
+    await interaction.deferReply({ ephemeral: true }); // Only visible to the user
+
+    const playerInput = interaction.options.getString("roblox_username")?.trim();
+
+    // 1. Resolve Roblox user
+    const robloxUser = await resolveRobloxUser(playerInput);
+    if (!robloxUser) {
+      return interaction.editReply(`❌ Could not find Roblox user \`${playerInput}\`. Check your username and try again.`);
+    }
+    const { userId, username } = robloxUser;
+
+    // 2. Check if the Discord member is a server booster
+    let guild;
+    try {
+      guild = await client.guilds.fetch(GUILD_ID);
+      await guild.members.fetch(); // Cache all members so premiumSince is available
+    } catch (err) {
+      console.error("[verifyari] Failed to fetch guild/members:", err);
+      return interaction.editReply("❌ Failed to check your server membership. Please try again later.");
+    }
+
+    const discordMember = guild.members.cache.get(interaction.user.id);
+    if (!discordMember) {
+      return interaction.editReply("❌ Could not find your Discord account in this server.");
+    }
+
+    const isBooster   = !!discordMember.premiumSince; // truthy if they're boosting
+    const hasGamepass = await checkGamepass(userId, GAMEPASS_ID);
+
+    // 3. Deny if they qualify for neither
+    if (!isBooster && !hasGamepass) {
+      const embed = new EmbedBuilder()
+        .setTitle("❌ Verification Failed")
+        .setColor(0xe74c3c)
+        .setDescription(
+          "You don't meet the requirements to join the Aristocracy group.\n\n" +
+          "**To qualify, you must have at least one of:**\n" +
+          `• 🚀 Be a server booster in this Discord\n` +
+          `• 🎮 Own the required Roblox gamepass`
+        )
+        .setTimestamp();
+      return interaction.editReply({ embeds: [embed] });
+    }
+
+    // 4. Determine rank (gamepass beats booster-only)
+    const rankToSet = hasGamepass ? RANK_GAMEPASS : RANK_BOOSTER;
+    const reasons   = [];
+    if (isBooster)   reasons.push("🚀 Server Booster");
+    if (hasGamepass) reasons.push("🎮 Gamepass Owner");
+
+    // 5. Accept into group + set rank via middleware
+    try {
+      // Accept into group
+      const acceptRes = await fetch(`${MIDDLEWARE_URL}/api/group/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          groupId: ROBLOX_GROUP_ID,
+          secret: SECRET,
+        }),
+      });
+
+      // Set rank
+      const rankRes = await fetch(`${MIDDLEWARE_URL}/api/group/setrank`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          groupId: ROBLOX_GROUP_ID,
+          rankId: rankToSet,
+          secret: SECRET,
+        }),
+      });
+
+      if (!rankRes.ok) {
+        const errData = await rankRes.json().catch(() => ({}));
+        console.error("[verifyari] Rank set failed:", errData);
+        return interaction.editReply("❌ Verified, but failed to set your rank. Please contact an admin.");
+      }
+    } catch (err) {
+      console.error("[verifyari] Middleware error:", err);
+      return interaction.editReply(`❌ Error contacting the group server: \`${err.message}\``);
+    }
+
+    // 6. Success embed
+    const embed = new EmbedBuilder()
+      .setTitle("✅ Verification Successful!")
+      .setColor(0x2ecc71)
+      .addFields(
+        { name: "Roblox Username", value: username,                         inline: true },
+        { name: "Rank Assigned",   value: `Rank ${rankToSet}`,              inline: true },
+        { name: "Qualified By",    value: reasons.join("\n"),               inline: false },
+      )
+      .setDescription("You have been accepted into the **Aristocracy** group and ranked accordingly.")
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+
+    // 7. Log to webhook
+    await sendWebhookLog(
+      `✅ **Aristocracy Verify**\n` +
+      `**Discord:** <@${interaction.user.id}>\n` +
+      `**Roblox:** ${username} (\`${userId}\`)\n` +
+      `**Rank:** ${rankToSet}\n` +
+      `**Reason:** ${reasons.join(", ")}`
+    );
+
+    return;
+  }
+
+  // ── All other commands need a player argument
   await interaction.deferReply();
 
   const playerInput = interaction.options.getString("player")?.trim();
@@ -318,11 +462,7 @@ client.on("interactionCreate", async (interaction) => {
           { name: "XP",       value: `**${data.xp}**`,    inline: true },
           { name: "Rank",     value: `**${tier.label}**`, inline: true },
           { name: "Progress", value: bar,                  inline: false },
-          {
-            name: "💡 How to earn XP",
-            value: XP_TIPS.join("\n"),
-            inline: false,
-          },
+          { name: "💡 How to earn XP", value: XP_TIPS.join("\n"), inline: false },
         )
         .setFooter({ text: next ? `Next rank: ${next.label} at ${next.xp} XP` : "🏆 Maximum rank achieved!" })
         .setTimestamp();
