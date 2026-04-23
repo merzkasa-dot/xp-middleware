@@ -403,17 +403,19 @@ client.on("interactionCreate", async (interaction) => {
 
     // 6. Success embed
     const embed = new EmbedBuilder()
-      .setTitle("✅ Verification Successful!")
-      .setColor(0x2ecc71)
-      .addFields(
-        { name: "Roblox Username", value: username,                         inline: true },
-        { name: "Rank Assigned",   value: `Rank ${rankToSet}`,              inline: true },
-        { name: "Qualified By",    value: reasons.join("\n"),               inline: false },
-      )
-      .setDescription("You have been accepted into the **Aristocracy** group and ranked accordingly.")
-      .setTimestamp();
-
-    await interaction.editReply({ embeds: [embed] });
+  .setTitle("✅ Verification Successful!")
+  .setColor(0x2ecc71)
+  .addFields(
+    { name: "Roblox Username", value: username,            inline: true },
+    { name: "Rank Assigned",   value: `Rank ${rankToSet}`, inline: true },
+    { name: "Qualified By",    value: reasons.join("\n"),  inline: false },
+  )
+  .setDescription(
+    "You have been accepted into the **Aristocracy** group and ranked accordingly.\n\n" +
+    "📋 **Request to join here:**\n" +
+    "https://www.roblox.com/communities/47900796/SMS-Aristocracy#!/about"
+  )
+  .setTimestamp();
 
     // 7. Log to webhook
     await sendWebhookLog(
