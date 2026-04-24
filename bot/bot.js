@@ -263,6 +263,15 @@ const commands = [
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
   try {
+    // Clear global commands
+    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
+    console.log("[Bot] Cleared global commands.");
+
+    // Clear guild commands
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: [] });
+    console.log("[Bot] Cleared guild commands.");
+
+    // Re-register globally
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
     console.log("[Bot] Slash commands registered globally.");
   } catch (err) {
