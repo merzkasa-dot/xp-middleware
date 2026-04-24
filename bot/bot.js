@@ -263,8 +263,8 @@ const commands = [
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
   try {
-    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
-    console.log("[Bot] Slash commands registered to guild instantly.");
+    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+    console.log("[Bot] Slash commands registered globally.");
   } catch (err) {
     console.error("[Bot] Failed to register commands:", err);
   }
