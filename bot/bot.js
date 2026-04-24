@@ -10,7 +10,7 @@ const DISCORD_TOKEN  = process.env.DISCORD_TOKEN?.replace(/^"|"$/g, "");
 const CLIENT_ID      = process.env.CLIENT_ID?.replace(/^"|"$/g, "");
 const MIDDLEWARE_URL = process.env.MIDDLEWARE_URL?.replace(/^"|"$/g, "");
 const SECRET         = process.env.SECRET?.replace(/^"|"$/g, "");
-const GUILD_ID       = "1482833669558239242";
+const GUILD_ID       = "1430334268701282360";
 const MEDAL_WEBHOOK  = "https://discord.com/api/webhooks/1495502633853779990/AniBufk_HWlS0kDhpGiuD654bcKSxLEYb7w_XQxB0kzW4wcsQvZD4TPCEaKuu2Fuf7zI";
 
 // ── Roblox group + gamepass config
