@@ -176,6 +176,36 @@ app.post("/api/xp-update", async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/group/accept
+app.post("/api/group/accept", async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+  try {
+    await noblox.acceptJoinRequest(GROUP_ID, Number(userId));
+    console.log(`[Group] Accepted join request for user ${userId}`);
+    res.json({ ok: true, userId });
+  } catch (err) {
+    console.warn(`[Group] Could not accept user ${userId}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/group/setrank
+app.post("/api/group/setrank", async (req, res) => {
+  const { userId, rankId } = req.body;
+  if (!userId || !rankId) return res.status(400).json({ error: "Missing userId or rankId" });
+
+  try {
+    await noblox.setRank(GROUP_ID, Number(userId), Number(rankId));
+    console.log(`[Group] Set rank ${rankId} for user ${userId}`);
+    res.json({ ok: true, userId, rankId });
+  } catch (err) {
+    console.warn(`[Group] Could not set rank for ${userId}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/xp
 app.get("/api/xp", async (req, res) => {
   const { userId } = req.query;
